@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Trigonometria</title>
+<style>
+body { background: #0b0f1a; color: #fff; font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+h1 { color: #ffcc66; margin-bottom: 20px; }
+input, select { width: 80%; max-width: 300px; padding: 10px; font-size: 16px; border: none; border-radius: 8px; outline: none; margin-bottom: 15px; }
+button { background: #ffcc66; color: #000; border: none; padding: 10px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+button:hover { background: #ffaa33; }
+#resultado, #explicacao { margin-top: 20px; font-size: 18px; text-align:left; display:inline-block; max-width:400px; }
+.footer { margin-top: 20px; font-size: 0.8em; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<h1>Calculadora de Trigonometria</h1>
+
+<select id="tipoValor">
+  <option value="sen">sen(x)</option>
+  <option value="cos">cos(x)</option>
+</select>
+<br>
+<input id="valor" type="text" placeholder="Digite o valor (ex: 3/5 ou 0.6)" />
+<br>
+<button onclick="calcularTrig()">Calcular funções trigonométricas</button>
+<button onclick="exportarPDF()">Exportar para PDF</button>
+
+<div id="resultado"></div>
+<div id="explicacao"></div>
+<div class="footer">Desenvolvido por Bernard</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+let ultimoResultado = {};
+
+function calcularTrig(){
+  let tipo = document.getElementById("tipoValor").value;
+  let valorStr = document.getElementById("valor").value.trim();
+
+  // Suporta fração
+  let valor = valorStr.includes('/') ? eval(valorStr) : parseFloat(valorStr);
+
+  if(isNaN(valor) || valor < 0 || valor > 1){
+    alert("Insira um valor válido entre 0 e 1.");
+    return;
+  }
+
+  let sen, cos, tg, cot, sec, csc;
+
+  if(tipo === 'sen'){
+    sen = valor;
+    cos = Math.sqrt(1 - sen*sen);
+  } else {
+    cos = valor;
+    sen = Math.sqrt(1 - cos*cos);
+  }
+
+  tg = sen / cos;
+  cot = cos / sen;
+  sec = 1 / cos;
+  csc = 1 / sen;
+
+  let resultadoTexto = `
+sen(x) = ${sen.toFixed(3)}
+cos(x) = ${cos.toFixed(3)}
+tg(x) = ${tg.toFixed(3)}
+cot(x) = ${cot.toFixed(3)}
+sec(x) = ${sec.toFixed(3)}
+csc(x) = ${csc.toFixed(3)}
+  `;
+
+  let explicacaoTexto = `Passo a passo:\n`;
+  explicacaoTexto += `1. Valor dado: ${tipo}(x) = ${valorStr}\n`;
+  explicacaoTexto += `2. Usamos identidade fundamental: sen²(x) + cos²(x) = 1\n`;
+  explicacaoTexto += `3. Calculamos o valor faltante:\n`;
+  explicacaoTexto += tipo==='sen' ? `   cos(x) = √(1 - sen²(x)) = √(1 - ${sen.toFixed(3)}²) = ${cos.toFixed(3)}\n`
+                                   : `   sen(x) = √(1 - cos²(x)) = √(1 - ${cos.toFixed(3)}²) = ${sen.toFixed(3)}\n`;
+  explicacaoTexto += `4. tg(x) = sen(x)/cos(x) = ${sen.toFixed(3)}/${cos.toFixed(3)} = ${tg.toFixed(3)}\n`;
+  explicacaoTexto += `5. cot(x) = cos(x)/sen(x) = ${cos.toFixed(3)}/${sen.toFixed(3)} = ${cot.toFixed(3)}\n`;
+  explicacaoTexto += `6. sec(x) = 1/cos(x) = 1/${cos.toFixed(3)} = ${sec.toFixed(3)}\n`;
+  explicacaoTexto += `7. csc(x) = 1/sen(x) = 1/${sen.toFixed(3)} = ${csc.toFixed(3)}\n`;
+
+  document.getElementById("resultado").innerHTML = `<pre>${resultadoTexto}</pre>`;
+  document.getElementById("explicacao").innerHTML = `<pre>${explicacaoTexto}</pre>`;
+
+  ultimoResultado = { tipo, valor: valorStr, resultadoTexto, explicacaoTexto };
+}
+
+async function exportarPDF(){
+  if(!ultimoResultado.resultadoTexto){ alert("Primeiro calcule!"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(14); doc.text("Cálculo de Trigonometria:",10,20);
+  doc.setFontSize(12); doc.text(`Valor dado: ${ultimoResultado.tipo}(x) = ${ultimoResultado.valor}`,10,30);
+  doc.setFontSize(14); doc.text("Resultado:",10,45);
+  doc.setFontSize(12); doc.text(ultimoResultado.resultadoTexto,10,55);
+  doc.setFontSize(14); doc.text("Explicação:",10,85);
+  doc.setFontSize(12); doc.text(ultimoResultado.explicacaoTexto,10,95,{maxWidth:190});
+
+  doc.save("Trigonometria.pdf");
+}
+</script>
+
+</body>
+</html>
