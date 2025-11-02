@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora Universal de Equações do 2º Grau</title>
+<style>
+  body { background: #0b0f1a; color: #fff; font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+  h1 { color: #00ffcc; margin-bottom: 15px; }
+  input { width: 80%; max-width: 300px; padding: 10px; font-size: 16px; border: none; border-radius: 8px; outline: none; margin-bottom: 15px; }
+  button { background: #00ffcc; color: #000; border: none; padding: 10px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+  button:hover { background: #00cfa1; }
+  #resultado, #explicacao { margin-top: 20px; font-size: 18px; }
+  canvas { margin-top: 30px; background: #fff; border-radius: 10px; }
+  .footer { margin-top: 20px; font-size: 0.8em; color: #94a3b8; }
+</style>
+</head>
+<body>
+<h1>Calculadora Universal de Equações do 2º Grau</h1>
+<input id="equacao" type="text" placeholder="Ex: 2x² - 5x - 3 = 0" />
+<br>
+<button onclick="calcular()">Calcular e Mostrar Gráfico</button>
+<button onclick="exportarPDF()">Exportar para PDF</button>
+
+<div id="resultado"></div>
+<canvas id="grafico" width="400" height="300"></canvas>
+<div id="explicacao"></div>
+<div class="footer">Desenvolvido por Bernard</div>
+
+<script src="jspdf.umd.min.js"></script>
+<script>
+let ultimoResultado = {};
+
+function calcular() {
+  let input = document.getElementById("equacao").value.replace(/\s+/g,"").replace(",",".");
+  if(!input.includes("x^2") || !input.includes("=0")) { alert("Formato inválido. Use: ax²+bx+c=0"); return; }
+
+  let a=0, b=0, c=0;
+
+  // Detecta termo x²
+  let x2 = input.match(/([+-]?[\d]*\.?[\d]*)x\^2/);
+  a = x2 ? (x2[1]===""||x2[1]==="+"?1:(x2[1]==="-"?-1:parseFloat(x2[1]))) : 0;
+
+  // Detecta termo x (não x²)
+  let x1 = input.match(/([+-]?[\d]*\.?[\d]*)x(?!\^)/);
+  b = x1 ? (x1[1]===""||x1[1]==="+"?1:(x1[1]==="-"?-1:parseFloat(x1[1]))) : 0;
+
+  // Detecta termo constante
+  let cMatch = input.match(/([+-]?[\d]+)(?==0)/);
+  c = cMatch ? parseFloat(cMatch[1]) : 0;
+
+  const delta = b*b - 4*a*c;
+  const raizDelta = Math.sqrt(Math.abs(delta));
+
+  let x_1=null, x_2=null, resultadoTexto="", explicacaoTexto="";
+
+  if(delta < 0){
+    resultadoTexto = `Δ = ${delta.toFixed(2).replace(".",",")}<br>Não existem raízes reais.`;
+    explicacaoTexto = `Passo a passo:
+1. Coeficientes: a=${a}, b=${b}, c=${c}.
+2. Δ = b² - 4·a·c = ${delta.toFixed(2).replace(".",",")}.
+3. Como Δ < 0, não existem raízes reais.`;
+  } else {
+    x_1 = (-b + raizDelta)/(2*a);
+    x_2 = (-b - raizDelta)/(2*a);
+    resultadoTexto = `Δ = ${delta.toFixed(2).replace(".",",")}<br>x₁ = ${x_1.toFixed(2).replace(".",",")}<br>x₂ = ${x_2.toFixed(2).replace(".",",")}`;
+    explicacaoTexto = `Passo a passo:
+1. Coeficientes: a=${a}, b=${b}, c=${c}.
+2. Δ = b² - 4·a·c = ${delta.toFixed(2).replace(".",",")}.
+3. Como Δ ≥ 0, calculamos as raízes:
+   - x₁ = (-b + √Δ)/(2·a) = ${x_1.toFixed(2).replace(".",",")}
+   - x₂ = (-b - √Δ)/(2·a) = ${x_2.toFixed(2).replace(".",",")}
+4. Raízes reais: x₁ = ${x_1.toFixed(2).replace(".",",")}, x₂ = ${x_2.toFixed(2).replace(".",",")}`;
+  }
+
+  document.getElementById("resultado").innerHTML = resultadoTexto;
+  document.getElementById("explicacao").innerHTML = explicacaoTexto.replace(/\n/g,"<br>");
+
+  ultimoResultado = { equacao: input, resultado: resultadoTexto, explicacao: explicacaoTexto };
+
+  desenharGrafico(a,b,c,x_1,x_2,delta);
+}
+
+function desenharGrafico(a,b,c,x1=null,x2=null,delta=null){
+  const canvas = document.getElementById("grafico");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  const escalaX = 40, escalaY = 20;
+  const offsetX = canvas.width/2, offsetY = canvas.height/2;
+
+  // Eixos
+  ctx.strokeStyle="#aaa";
+  ctx.beginPath();
+  ctx.moveTo(0,offsetY); ctx.lineTo(canvas.width,offsetY);
+  ctx.moveTo(offsetX,0); ctx.lineTo(offsetX,canvas.height);
+  ctx.stroke();
+
+  // Curva
+  ctx.strokeStyle="#00ffcc";
+  ctx.beginPath();
+  for(let px=0; px<=canvas.width; px++){
+    const x=(px-offsetX)/escalaX;
+    const y=a*x*x + b*x + c;
+    const py=offsetY - y*escalaY;
+    if(px===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+
+  // Marcar raízes
+  if(delta>=0){
+    ctx.fillStyle="#ff006e";
+    ctx.beginPath();
+    if(x1!==null) ctx.arc(offsetX+x1*escalaX, offsetY,5,0,2*Math.PI);
+    if(x2!==null) ctx.arc(offsetX+x2*escalaX, offsetY,5,0,2*Math.PI);
+    ctx.fill();
+  }
+}
+
+async function exportarPDF(){
+  if(!ultimoResultado.equacao){ alert("Primeiro calcule uma equação para exportar."); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  doc.setFontSize(14);
+  doc.text("Equação:",10,20);
+  doc.setFontSize(12);
+  doc.text(ultimoResultado.equacao,10,30);
+
+  doc.setFontSize(14);
+  doc.text("Resultado:",10,45);
+  doc.setFontSize(12);
+  doc.text(ultimoResultado.resultado.replace(/<br>/g,"\n"),10,55);
+
+  doc.setFontSize(14);
+  doc.text("Explicação:",10,85);
+  doc.setFontSize(12);
+  doc.text(ultimoResultado.explicacao,10,95,{maxWidth:190});
+
+  const canvas = document.getElementById("grafico");
+  const imgData = canvas.toDataURL("image/png");
+  doc.addPage();
+  doc.setFontSize(14);
+  doc.text("Gráfico:",10,20);
+  doc.addImage(imgData,'PNG',10,30,180,120);
+
+  doc.save("Equacao2Grau.pdf");
+}
+</script>
+</body>
+</html>
