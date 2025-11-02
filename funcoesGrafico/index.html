@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Funções - Zeros e Gráficos</title>
+<style>
+body { background: #0b0f1a; color: #fff; font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+h1 { color: #ff66cc; margin-bottom: 15px; }
+input { width: 80%; max-width: 300px; padding: 10px; font-size: 16px; border: none; border-radius: 8px; outline: none; margin-bottom: 15px; }
+button { background: #ff66cc; color: #000; border: none; padding: 10px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+button:hover { background: #e655b3; }
+#resultado, #explicacao { margin-top: 20px; font-size: 18px; text-align:left; display:inline-block; max-width:400px; }
+canvas { margin-top: 30px; background: #fff; border-radius: 10px; }
+.footer { margin-top: 20px; font-size: 0.8em; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<h1>Calculadora de Funções - Zeros e Gráficos</h1>
+<input id="funcao" type="text" placeholder="Ex: 2x² - 3x + 1 ou x³ - 2x² + x -1" />
+<br>
+<button onclick="calcularFuncao()">Calcular zeros e Mostrar Gráfico</button>
+<button onclick="exportarPDF()">Exportar para PDF</button>
+
+<div id="resultado"></div>
+<canvas id="grafico" width="400" height="300"></canvas>
+<div id="explicacao"></div>
+<div class="footer">Desenvolvido por Bernard</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+let ultimoResultado = {};
+
+// Parser para polinômios de grau 2 ou 3
+function parseFuncao(fx) {
+  let eq = fx.replace(/\s+/g,"");
+  eq = eq.replace(/x³/g,'x^3').replace(/x²/g,'x^2');
+  if(eq[0] !== '+' && eq[0] !== '-') eq = '+' + eq;
+
+  let a=0,b=0,c=0,d=0;
+  const termos = eq.match(/[+-][^+-]+/g);
+  if(!termos) return null;
+
+  termos.forEach(t => {
+    if(t.includes('x^3')) { let coef = t.replace('x^3',''); coef = coef===''||coef==='+'?1:(coef==='-'?-1:parseFloat(coef)); a += coef; }
+    else if(t.includes('x^2')) { let coef = t.replace('x^2',''); coef = coef===''||coef==='+'?1:(coef==='-'?-1:parseFloat(coef)); b += coef; }
+    else if(t.includes('x')) { let coef = t.replace('x',''); coef = coef===''||coef==='+'?1:(coef==='-'?-1:parseFloat(coef)); c += coef; }
+    else { d += parseFloat(t); }
+  });
+  return {a,b,c,d};
+}
+
+// Resolver equação de grau 2
+function resolverGrau2(a,b,c){
+  let delta = b*b - 4*a*c;
+  if(delta<0) return [];
+  else return [(-b + Math.sqrt(delta))/(2*a), (-b - Math.sqrt(delta))/(2*a)];
+}
+
+// Resolver equação de grau 3 usando fórmula de Cardano (simplificada)
+function resolverGrau3(a,b,c,d){
+  // Apenas solução aproximada numérica (Newton-Raphson ou tentativa)
+  let zeros = [];
+  function f(x){return a*x**3 + b*x**2 + c*x + d;}
+  for(let i=-50;i<=50;i+=0.5){
+    let x=i;
+    if(Math.abs(f(x))<1e-2) zeros.push(Number(x.toFixed(2)));
+  }
+  return [...new Set(zeros)]; // remove duplicatas
+}
+
+function calcularFuncao() {
+  const fx = document.getElementById("funcao").value;
+  const coef = parseFuncao(fx);
+  if(!coef){ alert("Função inválida."); return; }
+  const {a,b,c,d} = coef;
+
+  let zeros=[];
+  let explicacao = `Função: ${fx}\n\n`;
+
+  if(a!==0){ // grau 3
+    zeros = resolverGrau3(a,b,c,d);
+    explicacao += `Função cúbica. Buscando zeros aproximados...\n`;
+  } else if(b!==0){ // grau 2
+    zeros = resolverGrau2(b,c,d);
+    explicacao += `Função quadrática. Fórmula: x = (-b ± √Δ)/(2a)\n`;
+    explicacao += `Substituindo: a=${b}, b=${c}, c=${d}\n`;
+  } else if(c!==0){ // grau 1
+    zeros = [-d/c];
+    explicacao += `Função linear. Solução: x = -c/b = ${(-d/c).toFixed(2)}\n`;
+  } else {
+    explicacao += `Função constante. Nenhum zero.\n`;
+  }
+
+  let resultadoTexto = zeros.length>0? "Zeros: " + zeros.join(", ") : "Não há zeros reais";
+
+  document.getElementById("resultado").innerHTML = resultadoTexto;
+  document.getElementById("explicacao").innerHTML = `<pre>${explicacao}</pre>`;
+  ultimoResultado = { funcao: fx, resultado: resultadoTexto, explicacao };
+
+  desenharGraficoFuncao(a,b,c,d,zeros);
+}
+
+function desenharGraficoFuncao(a,b,c,d,zeros=[]){
+  const canvas = document.getElementById("grafico");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const escalaX=40, escalaY=20;
+  const offsetX = canvas.width/2, offsetY = canvas.height/2;
+
+  // eixos
+  ctx.strokeStyle="#aaa";
+  ctx.beginPath();
+  ctx.moveTo(0,offsetY); ctx.lineTo(canvas.width,offsetY);
+  ctx.moveTo(offsetX,0); ctx.lineTo(offsetX,canvas.height);
+  ctx.stroke();
+
+  // curva
+  ctx.strokeStyle="#ff66cc";
+  ctx.beginPath();
+  for(let px=0; px<=canvas.width; px++){
+    const x=(px-offsetX)/escalaX;
+    const y=a*x**3 + b*x**2 + c*x + d;
+    const py=offsetY - y*escalaY;
+    if(px===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+
+  // marcar zeros
+  ctx.fillStyle="#00ffcc";
+  zeros.forEach(z=>{
+    ctx.beginPath();
+    ctx.arc(offsetX+z*escalaX, offsetY,5,0,2*Math.PI);
+    ctx.fill();
+  });
+}
+
+async function exportarPDF(){
+  if(!ultimoResultado.funcao){ alert("Primeiro calcule!"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14); doc.text("Função:",10,20);
+  doc.setFontSize(12); doc.text(ultimoResultado.funcao,10,30);
+  doc.setFontSize(14); doc.text("Resultado:",10,45);
+  doc.setFontSize(12); doc.text(ultimoResultado.resultado,10,55);
+  doc.setFontSize(14); doc.text("Explicação:",10,70);
+  doc.setFontSize(12); doc.text(ultimoResultado.explicacao,10,80,{maxWidth:190});
+  const canvas = document.getElementById("grafico");
+  const imgData = canvas.toDataURL("image/png");
+  doc.addPage();
+  doc.setFontSize(14); doc.text("Gráfico:",10,20);
+  doc.addImage(imgData,'PNG',10,30,180,120);
+  doc.save("FuncaoZeros.pdf");
+}
+</script>
+</body>
+</html>
