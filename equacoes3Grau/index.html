@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Equações do 3º Grau</title>
+<style>
+body { background: #0b0f1a; color: #fff; font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+h1 { color: #ffcc00; margin-bottom: 15px; }
+input { width: 80%; max-width: 300px; padding: 10px; font-size: 16px; border: none; border-radius: 8px; outline: none; margin-bottom: 15px; }
+button { background: #ffcc00; color: #000; border: none; padding: 10px 20px; font-size: 16px; border-radius: 8px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+button:hover { background: #e6b800; }
+#resultado, #explicacao { margin-top: 20px; font-size: 18px; text-align:left; display:inline-block; max-width:400px; }
+canvas { margin-top: 30px; background: #fff; border-radius: 10px; }
+.footer { margin-top: 20px; font-size: 0.8em; color: #94a3b8; }
+</style>
+</head>
+<body>
+
+<h1>Calculadora de Equações do 3º Grau</h1>
+<input id="equacao" type="text" placeholder="Ex: 2x³ - 3x² + 5x - 1 = 0" />
+<br>
+<button onclick="calcular()">Calcular e Mostrar Gráfico</button>
+<button onclick="exportarPDF()">Exportar para PDF</button>
+
+<div id="resultado"></div>
+<canvas id="grafico" width="400" height="300"></canvas>
+<div id="explicacao"></div>
+<div class="footer">Desenvolvido por Bernard</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+let ultimoResultado = {};
+
+function parseEquacaoCubo(equacao) {
+  let eq = equacao.replace(/\s+/g,"").replace("=0","");
+  let a=0,b=0,c=0,d=0;
+
+  eq = eq.replace(/x³/g,'x^3').replace(/x²/g,'x^2');
+  if(eq[0] !== '+' && eq[0] !== '-') eq = '+' + eq;
+
+  const termos = eq.match(/[+-][^+-]+/g);
+  if(!termos) return null;
+
+  termos.forEach(t => {
+    if(t.includes('x^3')) {
+      let coef = t.replace('x^3',''); coef = coef===''||coef==='+'?1:(coef==='-'?-1:parseFloat(coef));
+      a += coef;
+    } else if(t.includes('x^2')) {
+      let coef = t.replace('x^2',''); coef = coef===''||coef==='+'?1:(coef==='-'?-1:parseFloat(coef));
+      b += coef;
+    } else if(t.includes('x')) {
+      let coef = t.replace('x',''); coef = coef===''||coef==='+'?1:(coef==='-'?-1:parseFloat(coef));
+      c += coef;
+    } else {
+      d += parseFloat(t);
+    }
+  });
+
+  return {a,b,c,d};
+}
+
+function calcular() {
+  const coef = parseEquacaoCubo(document.getElementById("equacao").value);
+  if(!coef || coef.a===0){ alert("Equação inválida. Certifique-se que contém x³."); return; }
+  const {a,b,c,d} = coef;
+
+  // Conversão para reduzida: x³ + px + q = 0
+  const p = (3*a*c - b*b)/(3*a*a);
+  const q = (2*b*b*b - 9*a*b*c + 27*a*a*d)/(27*a*a*a);
+  const delta = (q*q)/4 + (p*p*p)/27;
+  let x = [];
+
+  let explicacao = `Equação geral: ${a}x³ + ${b}x² + ${c}x + ${d} = 0\n`;
+  explicacao += `Convertendo para forma reduzida: x³ + px + q = 0\n`;
+  explicacao += `p = ${p.toFixed(2)}, q = ${q.toFixed(2)}, Δ = ${delta.toFixed(2)}\n`;
+
+  if(delta >= 0) {
+    // Uma real e duas complexas
+    const A = Math.cbrt(-q/2 + Math.sqrt(delta));
+    const B = Math.cbrt(-q/2 - Math.sqrt(delta));
+    const x1 = (A+B) - b/(3*a);
+    const realPart = -(A+B)/2 - b/(3*a);
+    const imagPart = Math.sqrt(3)*(A-B)/2;
+    x.push(x1.toFixed(2)+" (real)");
+    x.push(realPart.toFixed(2)+" + "+imagPart.toFixed(2)+"i");
+    x.push(realPart.toFixed(2)+" - "+imagPart.toFixed(2)+"i");
+    explicacao += `Δ ≥ 0, 1 raiz real e 2 complexas:\n`;
+    explicacao += `x₁ = ${x1.toFixed(2)}\n`;
+    explicacao += `x₂ = ${realPart.toFixed(2)} + ${imagPart.toFixed(2)}i\n`;
+    explicacao += `x₃ = ${realPart.toFixed(2)} - ${imagPart.toFixed(2)}i\n`;
+  } else {
+    // Três reais
+    const r = Math.sqrt(-p*p*p/27);
+    const phi = Math.acos(-q/(2*r));
+    const x1 = 2*Math.cbrt(r)*Math.cos(phi/3) - b/(3*a);
+    const x2 = 2*Math.cbrt(r)*Math.cos((phi+2*Math.PI)/3) - b/(3*a);
+    const x3 = 2*Math.cbrt(r)*Math.cos((phi+4*Math.PI)/3) - b/(3*a);
+    x.push(x1.toFixed(2)); x.push(x2.toFixed(2)); x.push(x3.toFixed(2));
+    explicacao += `Δ < 0, 3 raízes reais:\n`;
+    explicacao += `x₁ = ${x1.toFixed(2)}, x₂ = ${x2.toFixed(2)}, x₃ = ${x3.toFixed(2)}\n`;
+  }
+
+  document.getElementById("resultado").innerHTML = x.join("<br>");
+  document.getElementById("explicacao").innerHTML = `<pre>${explicacao}</pre>`;
+  ultimoResultado = { equacao: document.getElementById("equacao").value, resultado: x.join("\n"), explicacao };
+
+  desenharGrafico3Grau(a,b,c,d);
+}
+
+function desenharGrafico3Grau(a,b,c,d){
+  const canvas = document.getElementById("grafico");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const escalaX=40, escalaY=20;
+  const offsetX = canvas.width/2, offsetY = canvas.height/2;
+
+  ctx.strokeStyle="#aaa";
+  ctx.beginPath();
+  ctx.moveTo(0,offsetY); ctx.lineTo(canvas.width,offsetY);
+  ctx.moveTo(offsetX,0); ctx.lineTo(offsetX,canvas.height);
+  ctx.stroke();
+
+  ctx.strokeStyle="#ffcc00";
+  ctx.beginPath();
+  for(let px=0; px<=canvas.width; px++){
+    const x=(px-offsetX)/escalaX;
+    const y=a*x*x*x + b*x*x + c*x + d;
+    const py=offsetY - y*escalaY;
+    if(px===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+}
+
+async function exportarPDF(){
+  if(!ultimoResultado.equacao){ alert("Primeiro calcule uma equação!"); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(14); doc.text("Equação:",10,20);
+  doc.setFontSize(12); doc.text(ultimoResultado.equacao,10,30);
+  doc.setFontSize(14); doc.text("Resultado:",10,45);
+  doc.setFontSize(12); doc.text(ultimoResultado.resultado,10,55);
+  doc.setFontSize(14); doc.text("Explicação:",10,70);
+  doc.setFontSize(12); doc.text(ultimoResultado.explicacao,10,80,{maxWidth:190});
+  const canvas = document.getElementById("grafico");
+  const imgData = canvas.toDataURL("image/png");
+  doc.addPage();
+  doc.setFontSize(14); doc.text("Gráfico:",10,20);
+  doc.addImage(imgData,'PNG',10,30,180,120);
+  doc.save("Equacao3Grau.pdf");
+}
+</script>
+</body>
+</html>
