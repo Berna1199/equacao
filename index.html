@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Equações do 3º Grau</title>
+<style>
+  * {
+    box-sizing: border-box;
+    font-family: 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+  }
+
+  .container {
+    background: #1e293b;
+    padding: 25px;
+    border-radius: 16px;
+    box-shadow: 0 0 20px #00000080;
+    width: 350px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.4em;
+    color: #00ffc8;
+    margin-bottom: 15px;
+  }
+
+  label {
+    font-size: 0.9em;
+    display: block;
+    margin-top: 10px;
+  }
+
+  input {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    background: #334155;
+    color: #00ffc8;
+    font-size: 1em;
+    margin-top: 5px;
+  }
+
+  button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background: #00b894;
+    color: white;
+    font-size: 1em;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  button:hover {
+    background: #00e6b8;
+  }
+
+  .resultado {
+    margin-top: 20px;
+    background: #0f172a;
+    border-radius: 10px;
+    padding: 10px;
+    min-height: 80px;
+    font-size: 0.95em;
+    text-align: center;
+  }
+
+  .footer {
+    text-align: center;
+    font-size: 0.8em;
+    margin-top: 10px;
+    color: #94a3b8;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Equação do 3º Grau</h1>
+
+    <label for="a">Coeficiente a:</label>
+    <input type="number" id="a" step="any">
+
+    <label for="b">Coeficiente b:</label>
+    <input type="number" id="b" step="any">
+
+    <label for="c">Coeficiente c:</label>
+    <input type="number" id="c" step="any">
+
+    <label for="d">Coeficiente d:</label>
+    <input type="number" id="d" step="any">
+
+    <button onclick="resolver()">Calcular raízes</button>
+
+    <div class="resultado" id="resultado">Digite os coeficientes e clique em Calcular.</div>
+
+    <div class="footer">Desenvolvido por Bernard</div>
+  </div>
+
+<script>
+function resolver() {
+  const a = parseFloat(document.getElementById("a").value);
+  const b = parseFloat(document.getElementById("b").value);
+  const c = parseFloat(document.getElementById("c").value);
+  const d = parseFloat(document.getElementById("d").value);
+  const res = document.getElementById("resultado");
+
+  if (isNaN(a) || a === 0 || isNaN(b) || isNaN(c) || isNaN(d)) {
+    res.innerHTML = "Por favor, insira valores válidos e certifique-se de que a ≠ 0.";
+    return;
+  }
+
+  // Normaliza os coeficientes (dividindo tudo por a)
+  const A = b / a;
+  const B = c / a;
+  const C = d / a;
+
+  // Fórmulas de Cardano
+  const p = B - (A * A) / 3;
+  const q = (2 * A * A * A) / 27 - (A * B) / 3 + C;
+  const delta = (q * q) / 4 + (p * p * p) / 27;
+
+  let x1, x2, x3;
+
+  if (delta > 0) {
+    const u = Math.cbrt(-q / 2 + Math.sqrt(delta));
+    const v = Math.cbrt(-q / 2 - Math.sqrt(delta));
+    x1 = u + v - A / 3;
+    x2 = -(u + v) / 2 - A / 3 + (u - v) * Math.sqrt(3) / 2 * 1j;
+    x3 = -(u + v) / 2 - A / 3 - (u - v) * Math.sqrt(3) / 2 * 1j;
+    res.innerHTML = `
+      🔹 Raiz real: <b>${x1.toFixed(6)}</b><br>
+      🔹 Raízes complexas: <b>${x2}</b>, <b>${x3}</b>`;
+  } 
+  else if (delta === 0) {
+    const u = Math.cbrt(-q / 2);
+    x1 = 2 * u - A / 3;
+    x2 = -u - A / 3;
+    res.innerHTML = `
+      🔹 Raiz dupla: <b>${x1.toFixed(6)}</b><br>
+      🔹 Raiz simples: <b>${x2.toFixed(6)}</b>`;
+  } 
+  else {
+    const r = Math.sqrt(-p * p * p / 27);
+    const phi = Math.acos(-q / (2 * Math.sqrt(-p * p * p / 27)));
+    const t = 2 * Math.sqrt(-p / 3);
+    x1 = t * Math.cos(phi / 3) - A / 3;
+    x2 = t * Math.cos((phi + 2 * Math.PI) / 3) - A / 3;
+    x3 = t * Math.cos((phi + 4 * Math.PI) / 3) - A / 3;
+
+    res.innerHTML = `
+      🔹 x₁ = <b>${x1.toFixed(6)}</b><br>
+      🔹 x₂ = <b>${x2.toFixed(6)}</b><br>
+      🔹 x₃ = <b>${x3.toFixed(6)}</b>`;
+  }
+}
+</script>
+</body>
+</html>
